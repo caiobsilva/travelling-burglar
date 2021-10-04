@@ -1,5 +1,5 @@
 from __future__ import annotations
-import random
+import random, copy
 
 class Route():
   MAX_WEIGHT_AMOUNT = 20.
@@ -12,6 +12,20 @@ class Route():
     self.route = []
     self.generate_individual()
 
+  def __deepcopy__(self, memodict={}) -> Route:
+    obj = Route(self.cities)
+    obj.trip_expenses = self.trip_expenses.copy()
+    obj.travel_time = self.travel_time.copy()
+    obj.route = self.route.copy()
+    return obj
+
+  def fitness(self) -> float:
+    score = 0.
+    for city in self.valid_route().route:
+      score += city.item_value
+    return score
+    return sum([c.item_value for c in self.valid_route().route])
+
   def mutate_individual(self) -> Route:
     i = random.randint(1, len(self.route)-2)
     previous_city = self.route[i-1]
@@ -21,13 +35,15 @@ class Route():
     self.route[i] = chosen_trip.destination_for(previous_city)
     # self.trip_expenses[i-1] = chosen_trip.value
     # self.travel_time[i-1] = chosen_trip.time
-
-    if not self.is_valid_route():
-      # import ipdb; ipdb.set_trace()
-      self.route.pop(-2)
-      self.trip_expenses.pop(-2)
-      self.travel_time.pop(-2)
     return self
+
+  def valid_route(self) -> Route:
+    obj = copy.deepcopy(self)
+    while not obj.is_valid_route():
+      obj.route.pop(-2)
+      obj.trip_expenses.pop(-2)
+      obj.travel_time.pop(-2)
+    return obj
 
   def total_weight(self) -> float:
     return sum([c.item_weight for c in self.route])

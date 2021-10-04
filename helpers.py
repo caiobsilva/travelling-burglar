@@ -8,6 +8,7 @@ def load_csv(path: str) -> dict:
 def print_individual(individual: list) -> None:
   print('===== Current best route =====')
 
+  individual = individual.valid_route()
   total_value = total_weight = total_time = 0.
   for i, city in enumerate(individual.route):
     total_value += city.item_value
