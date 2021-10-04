@@ -3,10 +3,12 @@ from route import Route
 from city import City
 from trip import Trip
 
-POP_SIZE = 100
-MAX_GENERATIONS = 50
+POP_SIZE = 1000
+MAX_GENERATIONS = 1000
+TRAGEDY_GENS = 20
 MUTATION_RATE = 0.5
 CROSSOVER_RATE = 0.01
+TRAGEDY_RATE = 0.5
 
 def load_cities(city_dict: list) -> list:
   cities = []
@@ -25,7 +27,6 @@ def load_trips(cities: list, trip_dict: list) -> None:
 
 def mutate_pop(population: list) -> list:
   amount_to_mutate = math.ceil(len(population) * MUTATION_RATE)
-  # pop_to_mutate = random.choices(population, k=amount_to_mutate)
   pop_to_mutate = copy.deepcopy(random.choices(population, k=amount_to_mutate))
   return [i.mutate_individual() for i in pop_to_mutate]
 
@@ -39,16 +40,24 @@ def crossover(population: list) -> list:
       route2 = pop_to_cross[j]
 
       cross_index = random.randint(0, len(new_route.route)-1)
-      new_route.route[cross_index:-1] = route2.route[cross_index:-1]
-      new_route.travel_time[cross_index:-1] = route2.travel_time[cross_index:-1]
-      new_route.trip_expenses[cross_index:-1] = route2.trip_expenses[cross_index:-1]
-      crossed_population.append(new_route)
-      # print([c.name for c in new_route.route])
+      if not any(r in new_route.route[0:cross_index] for r in route2.route[cross_index:-1]):
+        new_route.route[cross_index:-1] = route2.route[cross_index:-1]
+        new_route.travel_time[cross_index:-1] = route2.travel_time[cross_index:-1]
+        new_route.trip_expenses[cross_index:-1] = route2.trip_expenses[cross_index:-1]
+        crossed_population.append(new_route)
   return crossed_population
 
 def fitness(route: Route) -> float:
   return route.fitness()
-  # return route.total_value()
+
+def select_by_tragedy(population: list, generation: int, cities: list) -> list:
+  new_pop = sorted(population, key=fitness, reverse=True)
+  if (generation % TRAGEDY_GENS == 0):
+    tragedy_size = math.ceil(len(new_pop)*TRAGEDY_RATE)
+    new_individuals = [Route(cities) for _ in range(0, POP_SIZE-tragedy_size)]
+    return new_pop[0:tragedy_size] + new_individuals
+  else:
+    return new_pop[0:POP_SIZE]
 
 def select(population: list) -> list:
   new_pop = sorted(population, key=fitness, reverse=True)
@@ -67,7 +76,8 @@ while generation < MAX_GENERATIONS:
 
   mutated_pop = mutate_pop(population)
   crossover_pop = crossover(population)
-  population = select(population + mutated_pop + crossover_pop)
+  # population = select(population + mutated_pop + crossover_pop)
+  population = select_by_tragedy(population + mutated_pop + crossover_pop, generation, cities)
 
   if generation % 10 == 0:
     # import ipdb; ipdb.set_trace()
